@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>地理題獸 - 機會與風險</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #000;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        #game-container {
+            max-width: 480px;
+            margin: 0 auto;
+            height: 100vh;
+            height: 100dvh;
+            position: relative;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            background-image: url('https://i.postimg.cc/sXfh7Kk6/zhan-dou-bei-jing-tu01-ti-shou-ji-hui-yu-feng-xian.png');
+            background-size: cover;
+            background-position: center;
+            /* 營造暗黑復古漫畫風格 */
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+        }
+
+        .manga-filter {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.9) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 介面區塊 */
+        .ui-layer {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .beast-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .beast-sprite {
+            max-height: 250px;
+            width: auto;
+            filter: drop-shadow(0 0 15px rgba(255, 50, 50, 0.6));
+            transition: all 0.2s ease;
+        }
+
+        /* 對話與控制區 */
+        .control-area {
+            background: rgba(15, 15, 20, 0.95);
+            border-top: 4px solid #444;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            height: 45vh;
+        }
+
+        .dialogue-box {
+            min-height: 80px;
+            border: 2px solid #666;
+            background: #000;
+            padding: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
+            overflow-y: auto;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            overflow-y: auto;
+        }
+
+        .btn-option {
+            background: linear-gradient(180deg, #2a2a35 0%, #1a1a25 100%);
+            border: 1px solid #555;
+            color: #ddd;
+            padding: 12px 10px;
+            text-align: left;
+            font-family: 'Noto Serif TC', serif;
+            font-size: 13px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .btn-option:active {
+            background: #444;
+            transform: scale(0.98);
+        }
+
+        /* 狀態條 */
+        .hud {
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.7);
+            border-bottom: 2px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .hp-bar-container {
+            width: 120px;
+            height: 12px;
+            background: #333;
+            border: 1px solid #000;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .hp-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .hp-beast { background: linear-gradient(90deg, #8b0000, #ff4500); }
+        .hp-hero { background: linear-gradient(90deg, #006400, #32cd32); }
+
+        /* 動畫效果 */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake-effect {
+            animation: shake 0.4s;
+            animation-iteration-count: 1;
+        }
+
+        @keyframes slash {
+            0% { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); background: white; opacity: 0; }
+            50% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); background: white; opacity: 0.8; }
+            100% { opacity: 0; background: red; }
+        }
+        .slash-effect {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: white;
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .slash-active {
+            animation: slash 0.3s ease-out;
+        }
+
+        /* 覆蓋畫面 (開場/結局) */
+        .overlay-screen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            text-align: center;
+            transition: opacity 0.5s;
+        }
+        
+        .typewriter {
+            font-size: 16px;
+            line-height: 2;
+            color: #ccc;
+            margin-bottom: 30px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .btn-main {
+            background: #600;
+            color: white;
+            border: 2px solid #a00;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            font-family: 'Noto Serif TC', serif;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+        .btn-main:active { background: #800; transform: translateY(2px); }
+        
+        .hidden { display: none !important; }
+        .text-red { color: #ff5555; }
+        .text-green { color: #55ff55; }
+        .text-gold { color: #ffd700; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="manga-filter"></div>
+    <div id="slash-fx" class="slash-effect"></div>
+
+    <!-- 開場畫面 -->
+    <div id="intro-screen" class="overlay-screen">
+        <h1 class="text-4xl font-black text-red-700 mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(255,0,0,0.8)]" style="font-family: 'Noto Serif TC', serif;">地理題獸</h1>
+        <div class="typewriter" id="intro-text">
+            在這片由地理知識構成的世界，題獸盤踞四方。<br><br>
+            每一頭題獸，都守著一個關於人地關係的問題。<br><br>
+            你是最後的騎士，手握長劍，也手握選擇題的答案。<br><br>
+            不是所有敵人都能靠力量擊倒，有些只能靠知識。<br><br>
+            你的命運，取決於每一次作答。
+        </div>
+        <button class="btn-main mt-8" onclick="startGame()">拔劍 (開始戰鬥)</button>
+    </div>
+
+    <!-- 結局畫面 -->
+    <div id="end-screen" class="overlay-screen hidden">
+        <h1 id="end-title" class="text-3xl font-black mb-6 tracking-widest"></h1>
+        <div class="typewriter" id="end-text" style="text-align: center;"></div>
+        <button class="btn-main mt-8" onclick="location.reload()">再次挑戰</button>
+    </div>
+
+    <!-- 遊戲UI層 -->
+    <div class="ui-layer">
+        <!-- 頂部HUD (題獸) -->
+        <div class="hud">
+            <div>
+                <div class="text-xs text-gray-400">深淵巨獸</div>
+                <div class="font-bold text-red-500">題獸「機會與風險」</div>
+                <div class="hp-bar-container">
+                    <div id="beast-hp-bar" class="hp-bar hp-beast" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xl font-black text-red-500" id="beast-hp-text">150/150</div>
+                <div class="text-xs">HP</div>
+            </div>
+        </div>
+
+        <!-- 戰鬥畫面區 -->
+        <div class="beast-area" id="combat-area">
+            <img src="https://i.postimg.cc/d0nMtm8q/02-ti-shou-ji-hui-yu-feng-xian.png" alt="題獸" class="beast-sprite" id="beast-img">
+        </div>
+
+        <!-- 底部HUD (主角) -->
+        <div class="hud border-t border-b-0 border-gray-700" style="background: rgba(0,0,0,0.85);">
+            <div>
+                <div class="text-xs text-gray-400">最後的騎士</div>
+                <div class="font-bold text-green-400">主角</div>
+                <div class="hp-bar-container">
+                    <div id="hero-hp-bar" class="hp-bar hp-hero" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xl font-black text-green-400" id="hero-hp-text">100/100</div>
+                <div class="text-xs">HP</div>
+            </div>
+        </div>
+
+        <!-- 對話與選項區 -->
+        <div class="control-area">
+            <div class="dialogue-box" id="dialogue">
+                題獸發出震耳欲聾的咆哮，一場關於知識的生死決鬥即將展開！
+            </div>
+            <div class="options-grid" id="options-container">
+                <!-- 選項按鈕會由 JS 動態生成 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 遊戲數值設定
+    const MAX_HERO_HP = 100;
+    const MAX_BEAST_HP = 150;
+    const DAMAGE = 10;
+
+    let heroHp = MAX_HERO_HP;
+    let beastHp = MAX_BEAST_HP;
+    let currentQuestion = null;
+    let usedQuestions = [];
+
+    // 嘲諷語錄庫
+    const taunts = [
+        "愚蠢的騎士！就這點程度也想挑戰我？",
+        "太天真了！這就是你不溫習的下場！",
+        "可笑至極！你的知識簡直不堪一擊！好好聽著：",
+        "連這個都不知道？去地獄重讀地理吧！",
+        "知識就是力量，而你顯然手無寸鐵！",
+        "你那一套在這裡行不通！正解是這個："
+    ];
+
+    // 主角技能名稱
+    const skills = [
+        "板塊構造劍法・絕對正解",
+        "真理突刺",
+        "破題之刃",
+        "邏輯連斬",
+        "知識防壁破壞"
+    ];
+
+    // 題庫資料 (完整30題)
+    const questionsDB = [
+        {
+            q: "1. 擴張性板塊邊界的形成主要與地幔中的哪種機制有關？",
+            opts: ["A. 下降對流", "B. 上升對流", "C. 水流側向摩擦", "D. 岩石重力下沉"],
+            ans: 1,
+            exp: "地幔中的上升對流（Rising Convection Current）會推動兩塊相鄰的板塊沿著邊界向兩側分開，形成擴張性板塊邊界。"
+        },
+        {
+            q: "2. 在擴張性板塊邊界，主要作用的應力（Stress）和形成的斷層類型分別是什麼？",
+            opts: ["A. 擠壓力；逆斷層", "B. 剪切力；捩斷層", "C. 張力；正斷層", "D. 張力；逆斷層"],
+            ans: 2,
+            exp: "兩塊板塊互相分離時會產生張力（Tensional Force），進而在邊界處引發正斷層作用。"
+        },
+        {
+            q: "3. 當兩塊大洋地殼在擴張性板塊邊界分開時，岩漿湧上凝固會形成下列哪種地貌？",
+            opts: ["A. 海溝", "B. 褶曲山", "C. 大洋中脊", "D. 弧狀火山島"],
+            ans: 2,
+            exp: "當兩塊大洋地殼分開，岩漿從地幔湧上並凝固，會形成一連串的海底山脈，稱為大洋中脊。"
+        },
+        {
+            q: "4. 下列哪一組板塊邊界屬於「擴張性板塊邊界」？",
+            opts: ["A. 歐亞板塊與太平洋板塊", "B. 南美洲板塊與非洲板塊", "C. 太平洋板塊與北美洲板塊", "D. 歐亞板塊與印度-澳洲板塊"],
+            ans: 1,
+            exp: "南美洲板塊與非洲板塊之間為大西洋洋中脊，屬於典型的擴張性板塊邊界。"
+        },
+        {
+            q: "5. 裂谷（Rift Valley）在擴張性板塊邊界是如何形成的？",
+            opts: ["A. 兩旁的地塊上升", "B. 中間的地塊因重力下沉", "C. 沉積物受擠壓抬升", "D. 板塊俯衝熔融所致"],
+            ans: 1,
+            exp: "正斷層作用會導致中間的地塊因重力作用向下下沉，從而形成裂谷。"
+        },
+        {
+            q: "6. 下列關於復活島（Easter Island）的成因描述，何者正確？",
+            opts: ["A. 板塊俯衝引發的弧狀火山島", "B. 兩塊大陸地殼相撞擠壓抬升", "C. 海底火山爆發，噴出岩漿積聚露出海面", "D. 剪切力導致地塊水平錯動抬升"],
+            ans: 2,
+            exp: "在擴張性板塊邊界，岩漿沿弱線湧上形成海底火山，火山持續爆發及岩漿積聚露出海面後即形成火山島。"
+        },
+        {
+            q: "7. 在擴張性板塊邊界，不包含下列哪一種自然災害或現象？",
+            opts: ["A. 地震", "B. 火山爆發", "C. 海嘯", "D. 深源強烈俯衝帶地震"],
+            ans: 3,
+            exp: "擴張性板塊邊界會發生地震、火山爆發及海嘯，但「俯衝帶地震」僅發生於聚合性板塊邊界。"
+        },
+        {
+            q: "8. 斷塊山（Block Mountain）在擴張性板塊邊界是如何發生的？",
+            opts: ["A. 中間地塊上升", "B. 兩旁的地塊下降", "C. 沉積岩褶曲抬升", "D. 大陸地殼俯衝抬升"],
+            ans: 1,
+            exp: "在擴張性板塊邊界的斷層作用中，兩旁的地塊下降相對使中間突出，或形成斷塊山地貌。"
+        },
+        {
+            q: "9. 當大洋地殼與大陸地殼相撞時，為什麼是大洋地殼向下俯衝？",
+            opts: ["A. 大洋地殼厚度較厚", "B. 大洋地殼密度較高", "C. 大陸地殼移動速度較快", "D. 大陸地殼溫度較低"],
+            ans: 1,
+            exp: "大洋地殼的密度高於大陸地殼，因此沿著邊界會俯衝至大陸地殼之下，形成俯衝帶。"
+        },
+        {
+            q: "10. 大洋地殼與大陸地殼聚合時，沿著俯衝帶形成的海底窪地地貌稱為：",
+            opts: ["A. 大洋中脊", "B. 裂谷", "C. 海溝", "D. 斷塊山"],
+            ans: 2,
+            exp: "大洋板塊俯衝時會向下拖曳地表，沿著俯衝帶形成深海溝（如日本海溝）。"
+        },
+        {
+            q: "11. 安第斯山脈是由哪兩塊板塊聚合擠壓形成的褶曲山脈？",
+            opts: ["A. 歐亞板塊與印度-澳洲板塊", "B. 南美洲板塊與納斯加板塊", "C. 太平洋板塊與北美洲板塊", "D. 菲律賓板塊與太平洋板塊"],
+            ans: 1,
+            exp: "納斯加板塊（大洋）俯衝至南美洲板塊（大陸）之下，擠壓沉積岩褶曲抬升形成安第斯山脈。"
+        },
+        {
+            q: "12. 在大洋與大陸板塊聚合邊界，褶曲山的主要岩層來源是：",
+            opts: ["A. 地幔直接噴發的玄武岩", "B. 累積在海溝並受擠壓褶曲的沉積岩", "C. 軟流圈熔融後冷卻的花崗岩", "D. 變質岩受張力拉伸形成"],
+            ans: 1,
+            exp: "風化物質積聚在海溝形成沉積岩，板塊持續聚合的擠壓力量使沉積岩褶曲並抬升成褶曲山。"
+        },
+        {
+            q: "13. 板塊俯衝時為何會引發火山爆發？",
+            opts: ["A. 俯衝板塊釋放水分，降低軟流圈熔融溫度", "B. 張力拉開地殼使岩漿直接噴出", "C. 板塊摩擦生熱直接熔化全部大陸地殼", "D. 兩塊大陸地殼相撞擠出深層岩漿"],
+            ans: 0,
+            exp: "板塊俯衝至深處時釋放出水分，降低了軟流圈岩石的熔融溫度，產生岩漿並沿裂縫上湧導致火山爆發。"
+        },
+        {
+            q: "14. 下列哪一對板塊邊界屬於「大洋地殼與大陸地殼」的聚合邊界？",
+            opts: ["A. 北美洲板塊與歐亞板塊", "B. 非洲板塊與阿拉伯板塊", "C. 歐亞板塊與太平洋板塊", "D. 太平洋板塊與菲律賓板塊"],
+            ans: 2,
+            exp: "太平洋板塊（大洋）與歐亞板塊（大陸）交界屬於大洋與大陸地殼的聚合邊界。"
+        },
+        {
+            q: "15. 大洋與大陸地殼聚合邊界發生的斷層作用類型通常為：",
+            opts: ["A. 正斷層（張力引起）", "B. 逆斷層（擠壓力引起）", "C. 捩斷層（剪切力引起）", "D. 平移斷層（無應力）"],
+            ans: 1,
+            exp: "板塊碰撞聚合時產生強烈的擠壓力（Compressional Force），因此形成逆斷層。"
+        },
+        {
+            q: "16. 當兩塊大洋地殼聚合時，哪一塊地殼會向下俯衝？",
+            opts: ["A. 較新、溫度較高的地殼", "B. 密度較高（通常較老較冷）的地殼", "C. 面積較大的地殼", "D. 靠近陸地的地殼"],
+            ans: 1,
+            exp: "兩塊同為大洋地殼相撞時，密度較高（較老、較冷）的一方會俯衝至另一塊大洋地殼之下。"
+        },
+        {
+            q: "17. 世界最深的「馬里亞納海溝」是由哪兩塊板塊聚合形成的？",
+            opts: ["A. 太平洋板塊與菲律賓板塊", "B. 歐亞板塊與印度-澳洲板塊", "C. 納斯加板塊與南美洲板塊", "D. 北美洲板塊與胡安德富卡板塊"],
+            ans: 0,
+            exp: "太平洋板塊與菲律賓板塊（均為大洋地殼）聚合俯衝，形成了著名的馬里亞納海溝。"
+        },
+        {
+            q: "18. 兩塊大洋地殼聚合邊界主要形成的地貌組合是：",
+            opts: ["A. 裂谷、大洋中脊", "B. 海溝、火山（海底火山/島）", "C. 褶曲山脈、無火山", "D. 斷層崖、平原"],
+            ans: 1,
+            exp: "大洋與大洋地殼聚合會形成海溝，俯衝產生的岩漿上湧會形成海底火山或火山島鏈。"
+        },
+        {
+            q: "19. 下列何者不是兩塊大洋地殼聚合邊界常見的地理影響？",
+            opts: ["A. 地震", "B. 火山爆發", "C. 海嘯", "D. 大規模大陸冰川侵蝕"],
+            ans: 3,
+            exp: "兩塊大洋地殼聚合主要引發地震、火山爆發及海嘯；冰川侵蝕與板塊邊界活動無直接關聯。"
+        },
+        {
+            q: "20. 下列哪一組板塊邊界代表「兩塊大洋地殼」之間的聚合？",
+            opts: ["A. 歐亞板塊與印度-澳洲板塊", "B. 歐亞板塊與菲律賓板塊", "C. 非洲板塊與南美洲板塊", "D. 太平洋板塊與北美洲板塊"],
+            ans: 1,
+            exp: "歐亞板塊邊緣的海洋部分與菲律賓板塊交界屬於大洋地殼之間的聚合。"
+        },
+        {
+            q: "21. 當兩塊大陸地殼相撞時，為什麼沒有一方會俯衝到軟流圈？",
+            opts: ["A. 因為兩者均為大洋地殼", "B. 因為兩塊地殼密度相近且均較低", "C. 因為對流阻擋", "D. 因為張力將兩者拉開"],
+            ans: 1,
+            exp: "大陸地殼密度較低且兩者密度相近，無法俯衝進入高密度的軟流圈，因此會在地表相互擠壓。"
+        },
+        {
+            q: "22. 喜馬拉雅山脈是由哪兩塊大陸板塊相撞擠壓形成的？",
+            opts: ["A. 非洲板塊與歐亞板塊", "B. 歐亞板塊與印度-澳洲板塊", "C. 北美洲板塊與太平洋板塊", "D. 南美洲板塊與南極洲板塊"],
+            ans: 1,
+            exp: "印度-澳洲板塊向北移動，其大陸地殼與歐亞板塊的大陸地殼相撞，形成喜馬拉雅山脈。"
+        },
+        {
+            q: "23. 兩塊大陸聚合邊界（如喜馬拉雅山脈）火山作用不普遍的主因是？",
+            opts: ["A. 地幔完全沒有岩漿產生", "B. 雙重大陸地殼極厚，岩漿難以噴出", "C. 板塊運動已停止", "D. 該邊界無壓力"],
+            ans: 1,
+            exp: "由於雙重大陸地殼疊加厚度極大、沉積層深厚，岩漿難以突破到達地表，故噴出火山作用不大普遍。"
+        },
+        {
+            q: "24. 兩塊大陸地殼聚合時，最主要產生的地貌是：",
+            opts: ["A. 海溝", "B. 大洋中脊", "C. 褶曲山", "D. 火山島弧"],
+            ans: 2,
+            exp: "兩塊大陸地殼長時間受壓，地殼間的沉積層被擠壓褶曲並大幅抬升，形成巨大的褶曲山脈。"
+        },
+        {
+            q: "25. 兩塊大陸地殼聚合邊界主要帶來的自然災害影響是：",
+            opts: ["A. 頻繁火山爆發", "B. 強烈地震", "C. 大規模海嘯", "D. 海底裂開"],
+            ans: 1,
+            exp: "由於無板塊俯衝至洋底引發海嘯，且火山噴發罕見，大陸碰撞帶最主要的影響是強烈地震。"
+        },
+        {
+            q: "26. 板塊轉移邊界（保守性板塊邊界）的主要板塊運動方式是：",
+            opts: ["A. 兩塊板塊沿邊界相向聚合", "B. 兩塊板塊沿邊界反向分離", "C. 兩塊地殼因剪切力沿邊界水平滑動", "D. 垂直向下俯衝"],
+            ans: 2,
+            exp: "板塊轉移邊界是兩塊地殼受剪切力作用，沿邊界發生相對的水平錯動或滑動。"
+        },
+        {
+            q: "27. 在板塊轉移邊界主要出現的斷層類型是：",
+            opts: ["A. 正斷層", "B. 逆斷層", "C. 捩斷層（平移斷層）", "D. 盲斷層"],
+            ans: 2,
+            exp: "剪切力會導致地殼出現捩斷層（Strike-slip fault）。"
+        },
+        {
+            q: "28. 美國著名的聖安德烈斯斷層位於哪兩個板塊之間？",
+            opts: ["A. 太平洋板塊與北美洲板塊", "B. 歐亞板塊與非洲板塊", "C. 科科斯與加勒比板塊", "D. 納斯加與太平洋板塊"],
+            ans: 0,
+            exp: "聖安德烈斯斷層是太平洋板塊與北美洲板塊水平錯動所形成的典型板塊轉移邊界。"
+        },
+        {
+            q: "29. 下列關於板塊轉移邊界的特徵描述，何者正確？",
+            opts: ["A. 形成高聳褶曲山脈", "B. 產生大量新地殼", "C. 引發地震，但無新地貌形成", "D. 火山噴發最頻繁"],
+            ans: 2,
+            exp: "板塊轉移邊界既不破壞也不創造地殼，無顯著的地貌形成，主要影響為地震與海嘯。"
+        },
+        {
+            q: "30. 請比較三種板塊邊界與對應的應力作用，哪項組合正確？",
+            opts: ["A. 擴張-擠壓；聚合-張力；轉移-剪切", "B. 擴張-張力；聚合-擠壓；轉移-剪切", "C. 擴張-剪切；聚合-擠壓；轉移-張力", "D. 擴張-張力；聚合-剪切；轉移-擠壓"],
+            ans: 1,
+            exp: "擴張性邊界受張力產生正斷層；聚合性邊界受擠壓力產生逆斷層；轉移邊界受剪切力產生捩斷層。"
+        }
+    ];
+
+    const uiDialogue = document.getElementById('dialogue');
+    const uiOptions = document.getElementById('options-container');
+    const heroHpBar = document.getElementById('hero-hp-bar');
+    const heroHpText = document.getElementById('hero-hp-text');
+    const beastHpBar = document.getElementById('beast-hp-bar');
+    const beastHpText = document.getElementById('beast-hp-text');
+    const gameContainer = document.getElementById('game-container');
+    const slashFx = document.getElementById('slash-fx');
+
+    function startGame() {
+        document.getElementById('intro-screen').classList.add('hidden');
+        heroHp = MAX_HERO_HP;
+        beastHp = MAX_BEAST_HP;
+        usedQuestions = [];
+        updateHUD();
+        nextQuestion();
+    }
+
+    function updateHUD() {
+        heroHp = Math.max(0, heroHp);
+        beastHp = Math.max(0, beastHp);
+        
+        heroHpText.innerText = `${heroHp}/${MAX_HERO_HP}`;
+        heroHpBar.style.width = `${(heroHp / MAX_HERO_HP) * 100}%`;
+        
+        beastHpText.innerText = `${beastHp}/${MAX_BEAST_HP}`;
+        beastHpBar.style.width = `${(beastHp / MAX_BEAST_HP) * 100}%`;
+    }
+
+    function setDialogue(htmlText) {
+        uiDialogue.innerHTML = htmlText;
+        uiDialogue.scrollTop = uiDialogue.scrollHeight;
+    }
+
+    function getRandomQuestion() {
+        if (usedQuestions.length >= questionsDB.length) {
+            usedQuestions = []; // 如果全答完了就重置
+        }
+        let available = questionsDB.filter(q => !usedQuestions.includes(q));
+        let q = available[Math.floor(Math.random() * available.length)];
+        usedQuestions.push(q);
+        return q;
+    }
+
+    function nextQuestion() {
+        currentQuestion = getRandomQuestion();
+        setDialogue(`<span class="text-gold">【題獸發動攻擊】</span><br>${currentQuestion.q}`);
+        renderOptions();
+    }
+
+    function renderOptions() {
+        uiOptions.innerHTML = '';
+        currentQuestion.opts.forEach((optText, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-option';
+            btn.innerText = optText;
+            btn.onclick = () => handleAnswer(index);
+            uiOptions.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(selectedIndex) {
+        // 禁用按鈕防止連點
+        uiOptions.innerHTML = '';
+        
+        if (selectedIndex === currentQuestion.ans) {
+            // 答對 - 攻擊題獸
+            const skill = skills[Math.floor(Math.random() * skills.length)];
+            setDialogue(`<span class="text-green font-bold">正解！</span> 主角施展了 <span class="text-gold">「${skill}」</span>！<br>題獸受到 ${DAMAGE} 點傷害！`);
+            
+            // 特效：砍擊
+            slashFx.classList.add('slash-active');
+            document.getElementById('beast-img').classList.add('shake-effect');
+            
+            setTimeout(() => {
+                slashFx.classList.remove('slash-active');
+                document.getElementById('beast-img').classList.remove('shake-effect');
+                beastHp -= DAMAGE;
+                updateHUD();
+                checkGameState(true);
+            }, 400);
+
+        } else {
+            // 答錯 - 被題獸嘲諷與攻擊
+            const taunt = taunts[Math.floor(Math.random() * taunts.length)];
+            setDialogue(`<span class="text-red font-bold">錯誤！</span><br><span class="text-gray-400">題獸：</span>「${taunt}」<br><span class="text-gold">解釋：</span>${currentQuestion.exp}<br><br>你受到 ${DAMAGE} 點傷害！`);
+            
+            // 特效：畫面震動
+            gameContainer.classList.add('shake-effect');
+            setTimeout(() => {
+                gameContainer.classList.remove('shake-effect');
+                heroHp -= DAMAGE;
+                updateHUD();
+                checkGameState(false);
+            }, 400);
+        }
+    }
+
+    function checkGameState(wasCorrect) {
+        if (heroHp <= 0) {
+            setTimeout(showDefeat, 1500);
+        } else if (beastHp <= 0) {
+            setTimeout(showVictory, 1500);
+        } else {
+            // 生成繼續按鈕
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'btn-option';
+            nextBtn.style.textAlign = 'center';
+            nextBtn.style.fontWeight = 'bold';
+            nextBtn.style.color = '#fff';
+            nextBtn.style.background = '#440000';
+            nextBtn.innerText = wasCorrect ? "乘勝追擊 (下一題)" : "咬緊牙關 (承受下一擊)";
+            nextBtn.onclick = nextQuestion;
+            uiOptions.appendChild(nextBtn);
+        }
+    }
+
+    function showVictory() {
+        const endScreen = document.getElementById('end-screen');
+        document.getElementById('end-title').innerHTML = '<span class="text-gold">討伐成功</span>';
+        document.getElementById('end-title').className = 'text-4xl font-black mb-6 tracking-widest text-gold';
+        document.getElementById('end-text').innerHTML = `
+            我贏了……靠的是知識。<br><br>
+            不是蠻力，是答案。<br><br>
+            我做到了。<br><br>
+            <span class="text-sm text-gray-400">（這片由地理構成的板塊，終於迎來了平靜）</span>
+        `;
+        endScreen.classList.remove('hidden');
+    }
+
+    function showDefeat() {
+        const endScreen = document.getElementById('end-screen');
+        document.getElementById('end-title').innerHTML = '<span class="text-red-600">討伐失敗</span>';
+        document.getElementById('end-title').className = 'text-4xl font-black mb-6 tracking-widest text-red-600';
+        document.getElementById('end-text').innerHTML = `
+            騎士倒下了。<br><br>
+            你的血量歸零。<br><br>
+            這一次，知識沒能拯救你。<br><br>
+            <span class="text-sm text-gray-400">（但下一次，溫習好才再戰題獸吧！）</span>
+        `;
+        endScreen.classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
